@@ -23,18 +23,25 @@ import {
   Copy,
   FileDown,
   FileText,
+  HelpCircle,
   Loader2,
   RefreshCw,
   Send,
   Trash2,
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function ModernJobApplicationForm() {
   const [jobDescription, setJobDescription] = useState("");
   const [responseType, setResponseType] = useState("email");
   const [coverLetterFormat, setCoverLetterFormat] = useState("text");
-  const [quickResponse, setQuickResponse] = useState("yes");
+  const [useAdvancedAI, setUseAdvancedAI] = useState(false);
 
   const [question, setQuestion] = useState("");
   const [apiResponse, setApiResponse] = useState("");
@@ -79,22 +86,25 @@ export default function ModernJobApplicationForm() {
     setApiResponse("");
     setDisplayedResponse("");
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/job`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jobDescription,
-          responseType,
-          question,
-          quickResponse,
-          coverLetterFormat,
-          companyName,
-          companyAddress,
-          recruiterName,
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/chat/job`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jobDescription,
+            responseType,
+            question,
+            useAdvancedAI,
+            coverLetterFormat,
+            companyName,
+            companyAddress,
+            recruiterName,
+          }),
+        }
+      );
       const data = await response.json();
       setApiResponse(data.response);
       toast({
@@ -122,7 +132,7 @@ export default function ModernJobApplicationForm() {
     setJobDescription("");
     setResponseType("email");
     setCoverLetterFormat("text");
-    setQuickResponse("yes");
+    setUseAdvancedAI(false);
     setQuestion("");
     setApiResponse("");
     setDisplayedResponse("");
@@ -180,30 +190,43 @@ export default function ModernJobApplicationForm() {
                 />
               </div>
               <div className="space-y-4">
-                <Label>Response Type</Label>
-                <RadioGroup
-                  value={responseType}
-                  onValueChange={setResponseType}
-                  className="flex flex-wrap gap-4"
-                >
-                  {["email", "message", "cover-letter", "answer"].map(
-                    (type) => (
-                      <div
-                        key={type}
-                        className="flex items-center space-x-2 bg-secondary rounded-md px-4 py-2"
+                    <Label>Response Type</Label>
+                    <div className="flex flex-wrap gap-4">
+                      <RadioGroup
+                        value={responseType}
+                        onValueChange={setResponseType}
+                        className="flex flex-wrap gap-4"
                       >
-                        <RadioGroupItem value={type} id={type} />
-                        <Label
-                          htmlFor={type}
-                          className="capitalize cursor-pointer"
-                        >
-                          {type.replace("-", " ")}
-                        </Label>
+                        {["email", "message", "cover-letter", "answer"].map((type) => (
+                          <div
+                            key={type}
+                            className="flex items-center space-x-2 bg-secondary rounded-md px-4 py-2"
+                          >
+                            <RadioGroupItem value={type} id={type} />
+                            <Label htmlFor={type} className="capitalize cursor-pointer">
+                              {type.replace("-", " ")}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                      <div className="flex items-center space-x-2 px-4 py-2">
+                        <Checkbox
+                          id="advanced-ai"
+                          checked={useAdvancedAI}
+                          onCheckedChange={(checked) => setUseAdvancedAI(checked as boolean)}
+                        />
+                        <Label htmlFor="advanced-ai" className="cursor-pointer">Use Advanced AI</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Uses a more advanced AI model. Processing may take longer.</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
-                    )
-                  )}
-                </RadioGroup>
-              </div>
+                    </div>
+                  </div>
               <AnimatePresence>
                 {responseType === "cover-letter" && (
                   <motion.div
@@ -261,30 +284,6 @@ export default function ModernJobApplicationForm() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="space-y-4">
-                <Label>Quick Response: </Label>
-                <RadioGroup
-                  value={quickResponse}
-                  onValueChange={setQuickResponse}
-                  className="flex flex-wrap gap-4"
-                >
-                  {["yes", "no"].map((type) => (
-                    <div
-                      key={type}
-                      className="flex items-center space-x-2 bg-secondary rounded-md px-4 py-2"
-                    >
-                      <RadioGroupItem value={type} id={type} />
-                      <Label
-                        htmlFor={type}
-                        className="capitalize cursor-pointer"
-                      >
-                        {type.replace("-", " ")}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-
               <div className="flex space-x-2 justify-end">
                 <Button
                   type="submit"
