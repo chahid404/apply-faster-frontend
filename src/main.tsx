@@ -8,8 +8,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <TooltipProvider>
-      <App />
-      <Toaster />
+    <App />
+    <Toaster />
     </TooltipProvider>
   </StrictMode>
 );
