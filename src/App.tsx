@@ -39,6 +39,8 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
+import { PdfPreview } from "./components/PdfPreview";
+import { ResponseEditor } from "./components/ResponseEditor";
 import { cn } from "./lib/utils";
 
 export default function ModernJobApplicationForm() {
@@ -53,6 +55,8 @@ export default function ModernJobApplicationForm() {
   const [displayedResponse, setDisplayedResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [editableResponse, setEditableResponse] = useState("");
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
@@ -121,14 +125,12 @@ export default function ModernJobApplicationForm() {
         }
       );
       const data = await response.json();
-      setApiResponse(data.response);
+      const responseText = data.response.replace(/\\n/g, "\n");
+      setApiResponse(responseText);
+      setEditableResponse(responseText);
       toast({
         title: "Response generated",
         description: "Your job application response has been created.",
-      });
-      toast({
-        title: "Best resume",
-        description: data?.bestResume,
       });
     } catch (error) {
       console.error("Error:", error);
@@ -140,7 +142,6 @@ export default function ModernJobApplicationForm() {
       });
     }
     setIsLoading(false);
-    setShowPdfModal(false);
   };
 
   const handleClear = () => {
@@ -163,7 +164,10 @@ export default function ModernJobApplicationForm() {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(apiResponse);
+    //TODO check this for email type
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = editableResponse || apiResponse;
+    navigator.clipboard.writeText(tempDiv.textContent || "");
     toast({
       title: "Copied",
       description: "Response copied to clipboard.",
@@ -222,6 +226,7 @@ export default function ModernJobApplicationForm() {
       }
     }
   };
+
   const handleRemoveResume = () => {
     setResume(null);
     toast({
@@ -229,6 +234,21 @@ export default function ModernJobApplicationForm() {
       description: "Your resume has been removed.",
     });
   };
+
+  const handlePdfDownloaded = () => {
+    setShowPdfPreview(false);
+    toast({
+      title: "Success",
+      description: "Your cover letter has been downloaded as a PDF.",
+    });
+  };
+
+  useEffect(() => {
+    setQuestion("");
+    setApiResponse("");
+    setDisplayedResponse("");
+    //TODO keep the last state of responses after generating the response
+  }, [responseType, coverLetterFormat]);
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -470,9 +490,18 @@ export default function ModernJobApplicationForm() {
                 <CardTitle>Generated Response</CardTitle>
               </CardHeader>
               <CardContent className="prose prose-sm max-w-none mt-4">
-                <div className="whitespace-pre-wrap bg-muted p-4 rounded-md font-mono text-sm">
-                  {displayedResponse}
-                </div>
+                {responseType === "cover-letter" &&
+                coverLetterFormat === "pdf" ? (
+                  <ResponseEditor
+                    value={editableResponse}
+                    onChange={setEditableResponse}
+                    className="min-h-[300px]"
+                  />
+                ) : (
+                  <div className="whitespace-pre-wrap bg-muted p-4 rounded-md font-mono text-sm">
+                    {displayedResponse}
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="flex justify-end space-x-2 mt-4">
                 <Button
@@ -493,12 +522,29 @@ export default function ModernJobApplicationForm() {
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Regenerate
                 </Button>
+                {responseType === "cover-letter" && (
+                  <Button
+                    onClick={() => setShowPdfPreview(true)}
+                    variant="outline"
+                    size="sm"
+                    className="transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
 
+      <PdfPreview
+        content={editableResponse}
+        open={showPdfPreview}
+        onOpenChange={setShowPdfPreview}
+        onDownload={handlePdfDownloaded}
+      />
       <Dialog open={showPdfModal} onOpenChange={setShowPdfModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
