@@ -28,6 +28,7 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Copy,
+  Delete,
   FileDown,
   FileText,
   HelpCircle,
@@ -262,6 +263,27 @@ export default function ModernJobApplicationForm() {
     //TODO keep the last state of responses after generating the response
   }, [responseType]);
 
+  const handlePaste = async () => {
+    const clipboardText = await navigator.clipboard.readText();
+    if (clipboardText) {
+      setJobDescription(clipboardText);
+      toast({
+        title: "Pasted",
+        description: "Job description pasted from clipboard.",
+      });
+    } else {
+      toast({
+        title: "Clipboard Error",
+        description: "Failed to read from clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleClearJobDescription = () => {
+    setJobDescription("");
+  };
+
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <motion.h1
@@ -338,13 +360,52 @@ export default function ModernJobApplicationForm() {
                 >
                   Job Description
                 </Label>
-                <Textarea
-                  id="jobDescription"
-                  placeholder="Enter job description here..."
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  className="h-40 resize-none transition-all duration-200 focus:ring-2 focus:ring-primary"
-                />
+                <div className="relative">
+                  <Textarea
+                    id="jobDescription"
+                    placeholder="Enter job description here..."
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    className="h-40 resize-none transition-all duration-200 focus:ring-2 focus:ring-primary pr-12"
+                  />
+                  {jobDescription.length === 0 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          disabled={!navigator.clipboard}
+                          onClick={handlePaste}
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-4 z-10 hover:bg-secondary"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" align="center">
+                        <p>Paste Job Description from Clipboard</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          onClick={handleClearJobDescription}
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-4 z-10 text-red-500 hover:bg-red-100 hover:text-red-600"
+                        >
+                          <Delete className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" align="center">
+                        <p>Clear Job Description</p>{" "}
+                        {/* Updated tooltip content */}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-4">
