@@ -42,16 +42,17 @@ import { FormEvent, useEffect, useState } from "react";
 import { PdfPreview } from "./components/PdfPreview";
 import { ResponseEditor } from "./components/ResponseEditor";
 import { cn } from "./lib/utils";
+import { IAIAssist } from "./models/IAIAssist";
 
 export default function ModernJobApplicationForm() {
   const [jobDescription, setJobDescription] = useState("");
   const [responseType, setResponseType] = useState("email");
-  const [coverLetterFormat, setCoverLetterFormat] = useState("text");
   const [resume, setResume] = useState<string | null>(null);
   const [useAdvancedAI, setUseAdvancedAI] = useState(false);
   const [userResume, setUserResume] = useState({});
   const [question, setQuestion] = useState("");
-  const [apiResponse, setApiResponse] = useState("");
+  const [textResponse, setTextResponse] = useState("");
+  const [apiResponse, setApiResponse] = useState<IAIAssist | null>(null);
   const [displayedResponse, setDisplayedResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
@@ -64,18 +65,29 @@ export default function ModernJobApplicationForm() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (apiResponse) {
+    const localResume = localStorage.getItem("resume");
+    if (localResume) {
+      setUserResume(JSON.parse(localResume));
+    }
+    const localResumeName = localStorage.getItem("resumeName");
+    if (localResumeName) {
+      setResume(localResumeName);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (textResponse) {
       let i = 0;
       const intervalId = setInterval(() => {
-        setDisplayedResponse(apiResponse.slice(0, i));
+        setDisplayedResponse(textResponse.slice(0, i));
         i++;
-        if (i > apiResponse.length) {
+        if (i > textResponse.length) {
           clearInterval(intervalId);
         }
       }, 10);
       return () => clearInterval(intervalId);
     }
-  }, [apiResponse]);
+  }, [textResponse]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -87,21 +99,18 @@ export default function ModernJobApplicationForm() {
       });
       return;
     }
-    if (
-      responseType === "cover-letter" &&
-      coverLetterFormat === "pdf" &&
-      !showPdfModal
-    ) {
+    if (responseType === "cover-letter" && !showPdfModal) {
       setShowPdfModal(true);
       return;
     }
-    if (responseType === "cover-letter" && coverLetterFormat === "text") {
+    if (responseType === "cover-letter") {
       setCompanyAddress("");
       setCompanyName("");
       setRecruiterName("");
     }
     setIsLoading(true);
-    setApiResponse("");
+    setTextResponse("");
+    setApiResponse(null);
     setDisplayedResponse("");
     try {
       const response = await fetch(
@@ -116,7 +125,6 @@ export default function ModernJobApplicationForm() {
             responseType,
             question,
             useAdvancedAI,
-            coverLetterFormat,
             companyName,
             companyAddress,
             recruiterName,
@@ -126,7 +134,8 @@ export default function ModernJobApplicationForm() {
       );
       const data = await response.json();
       const responseText = data.response.replace(/\\n/g, "\n");
-      setApiResponse(responseText);
+      setApiResponse(data);
+      setTextResponse(responseText);
       setEditableResponse(responseText);
       toast({
         title: "Response generated",
@@ -134,7 +143,8 @@ export default function ModernJobApplicationForm() {
       });
     } catch (error) {
       console.error("Error:", error);
-      setApiResponse("An error occurred while processing your request.");
+      setTextResponse("An error occurred while processing your request.");
+      setApiResponse(null);
       toast({
         title: "Error",
         description: "Failed to generate response. Please try again.",
@@ -147,10 +157,10 @@ export default function ModernJobApplicationForm() {
   const handleClear = () => {
     setJobDescription("");
     setResponseType("email");
-    setCoverLetterFormat("text");
     setUseAdvancedAI(false);
     setQuestion("");
-    setApiResponse("");
+    setTextResponse("");
+    setApiResponse(null);
     setDisplayedResponse("");
     setCompanyName("");
     setCompanyAddress("");
@@ -166,7 +176,7 @@ export default function ModernJobApplicationForm() {
   const handleCopy = () => {
     //TODO check this for email type
     const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = editableResponse || apiResponse;
+    tempDiv.innerHTML = editableResponse || textResponse;
     navigator.clipboard.writeText(tempDiv.textContent || "");
     toast({
       title: "Copied",
@@ -199,6 +209,7 @@ export default function ModernJobApplicationForm() {
           );
 
           const result = response.data.extractedText;
+          localStorage.setItem("resumeName", file.name);
           localStorage.setItem("resume", JSON.stringify(result, null, 2));
           setUserResume(JSON.stringify(result, null, 2));
           setResume(file.name);
@@ -245,10 +256,11 @@ export default function ModernJobApplicationForm() {
 
   useEffect(() => {
     setQuestion("");
-    setApiResponse("");
+    setTextResponse("");
+    setApiResponse(null);
     setDisplayedResponse("");
     //TODO keep the last state of responses after generating the response
-  }, [responseType, coverLetterFormat]);
+  }, [responseType]);
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -385,67 +397,7 @@ export default function ModernJobApplicationForm() {
                   </div>
                 </div>
               </div>
-              <AnimatePresence>
-                {responseType === "cover-letter" && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-4 overflow-hidden"
-                  >
-                    <Label className="text-lg font-semibold">
-                      Cover Letter Format
-                    </Label>
-                    <RadioGroup
-                      value={coverLetterFormat}
-                      onValueChange={setCoverLetterFormat}
-                      className="flex gap-4"
-                    >
-                      <div className="flex items-center space-x-2 bg-secondary/50 hover:bg-secondary/70 transition-colors rounded-md px-4 py-2">
-                        <RadioGroupItem value="text" id="text" />
-                        <Label
-                          htmlFor="text"
-                          className="cursor-pointer flex items-center"
-                        >
-                          <FileText className="mr-2 h-4 w-4" />
-                          Text
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2 bg-secondary/50 hover:bg-secondary/70 transition-colors rounded-md px-4 py-2">
-                        <RadioGroupItem value="pdf" id="pdf" />
-                        <Label
-                          htmlFor="pdf"
-                          className="cursor-pointer flex items-center"
-                        >
-                          <FileDown className="mr-2 h-4 w-4" />
-                          PDF
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </motion.div>
-                )}
-                {responseType === "answer" && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-4 overflow-hidden"
-                  >
-                    <Label htmlFor="question" className="text-lg font-semibold">
-                      Question
-                    </Label>
-                    <Input
-                      id="question"
-                      placeholder="Enter the question you want to answer..."
-                      value={question}
-                      onChange={(e) => setQuestion(e.target.value)}
-                      className="transition-all duration-200 focus:ring-2 focus:ring-primary"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+
               <div className="flex space-x-2 justify-end">
                 <div>
                   <Button
@@ -490,8 +442,7 @@ export default function ModernJobApplicationForm() {
                 <CardTitle>Generated Response</CardTitle>
               </CardHeader>
               <CardContent className="prose prose-sm max-w-none mt-4">
-                {responseType === "cover-letter" &&
-                coverLetterFormat === "pdf" ? (
+                {responseType === "cover-letter" ? (
                   <ResponseEditor
                     value={editableResponse}
                     onChange={setEditableResponse}
@@ -541,6 +492,7 @@ export default function ModernJobApplicationForm() {
 
       <PdfPreview
         content={editableResponse}
+        extraInformation={apiResponse}
         open={showPdfPreview}
         onOpenChange={setShowPdfPreview}
         onDownload={handlePdfDownloaded}
